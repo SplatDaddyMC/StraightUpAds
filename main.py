@@ -11,7 +11,7 @@ reddit = praw.Reddit(
 # rotate through subreddits
 subreddits = ["test", "sub2", "sub3", "sub4"]
 index = datetime.datetime.utcnow().day % len(subreddits)
-target = subreddits[index]
+target = "u_splat-daddy"
 
 title = f"Daily test post {datetime.datetime.utcnow().strftime('%b %d, %Y')}"
 body = "## Hello Reddit!\n\nThis is a **Markdown** test post."
