@@ -93,15 +93,15 @@ CONFIG: Dict[str, Dict[str, Any]] = {
             "Additional questions? Reach out to us on [Discord](https://discord.gg/camSwwyUAe)!"
         ),
     },
-        "r/MinecraftSMPs": {
-        "schedule": {
-            "freq": "weekly",
-            # ISO weekday: 1=Mon … 7=Sun
-            "weekday": 1
-        },
-        "post_type": "image",
-        "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Website: https://straightupminecraft.com ",
-        "images": ["images/001.png", "images/002.png", "images/003.png", "images/004.png", "images/005.png", "images/006.png", "images/007.png", "images/008.png", "images/009.png"]
+    "r/MinecraftSMPs": {
+    "schedule": {
+        "freq": "weekly",
+        # ISO weekday: 1=Mon … 7=Sun
+        "weekday": 1
+    },
+    "post_type": "image",
+    "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Website: https://straightupminecraft.com ",
+    "images": ["images/001.png", "images/002.png", "images/003.png", "images/004.png", "images/005.png", "images/006.png", "images/007.png", "images/008.png", "images/009.png"]
     },
 
     # MONTHLY POSTS
