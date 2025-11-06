@@ -2,7 +2,7 @@ name: Daily Reddit Poster
 
 on:
   schedule:
-    - cron: "0 17 * * *"
+    - cron: "0 21 * * *"
   workflow_dispatch:   
 
 jobs:
