@@ -232,11 +232,33 @@ def post_markdown(reddit: praw.Reddit, target: str, title: str, body_md: str, fl
     apply_flair_if_any(reddit, submission, target, flair_text)
 
 def post_image(reddit: praw.Reddit, target: str, title: str, image_path: str, flair_text: Optional[str]):
-    if DRY_RUN:
-        print(f"[DRY RUN] Would POST image to {target}\n  Title: {title}\n  Image: {image_path}\n  Flair: {flair_text or '(none)'}")
+    """
+    Post all configured images as a gallery, rotating which one appears first each day.
+    """
+    images = CONFIG.get(target, {}).get("images", [])
+    if not images:
+        print(f"[WARN] {target}: No images configured.")
         return
-    submission = reddit.subreddit(target).submit_image(title=title, image_path=image_path)
+
+    if image_path in images:
+        first_index = images.index(image_path)
+        rotated_images = images[first_index:] + images[:first_index]
+    else:
+        rotated_images = images
+
+    gallery_items = [{"image_path": img} for img in rotated_images if os.path.exists(img)]
+
+    if not gallery_items:
+        print(f"[WARN] {target}: No valid images found for gallery.")
+        return
+
+    if DRY_RUN:
+        print(f"[DRY RUN] Would POST gallery to {target}\n  Title: {title}\n  Images: {[i['image_path'] for i in gallery_items]}\n  Flair: {flair_text or '(none)'}")
+        return
+
+    submission = reddit.subreddit(target).submit_gallery(title=title, images=gallery_items)
     apply_flair_if_any(reddit, submission, target, flair_text)
+
 
 
 # =======
