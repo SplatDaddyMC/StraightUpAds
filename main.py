@@ -1,9 +1,11 @@
 import os
 import sys
+import time
 import datetime as dt
 from typing import Dict, Any, List, Optional
 
 import praw
+from praw.exceptions import RedditAPIException
 
 # ==================
 # RUNTIME SETTINGS
@@ -42,20 +44,20 @@ CONFIG: Dict[str, Dict[str, Any]] = {
             "Additional questions? Reach out to us on [Discord](https://discord.gg/camSwwyUAe)!"
         ),
     },
-        "r/MinecraftServer": {
+    "r/MinecraftServer": {
         "schedule": {"freq": "daily"},
         "post_type": "image",
         "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Discord: https://discord.gg/camSwwyUAe | Website: https://straightupminecraft.com",
         "images": ["images/001.png", "images/002.png", "images/003.png", "images/004.png", "images/005.png", "images/006.png", "images/007.png", "images/008.png", "images/009.png"]
     },
-        "r/MinecraftServerFinder": {
+    "r/MinecraftServerFinder": {
         "schedule": {"freq": "daily"},
         "post_type": "image",
         "flair_text": "Advertising",
         "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Discord: https://discord.gg/camSwwyUAe | Website: https://straightupminecraft.com",
         "images": ["images/001.png", "images/002.png", "images/003.png", "images/004.png", "images/005.png", "images/006.png", "images/007.png", "images/008.png", "images/009.png"]
     },
-        "r/MinecraftServerShare": {
+    "r/MinecraftServerShare": {
         "schedule": {"freq": "daily"},
         "post_type": "image",
         "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Discord: https://discord.gg/camSwwyUAe | Website: https://straightupminecraft.com",
@@ -64,11 +66,7 @@ CONFIG: Dict[str, Dict[str, Any]] = {
 
     # WEEKLY POSTS
     "r/mcservers": {
-        "schedule": {
-            "freq": "weekly",
-            # ISO weekday: 1=Mon … 7=Sun
-            "weekday": 1
-        },
+        "schedule": {"freq": "weekly", "weekday": 1},
         "post_type": "markdown",
         "title_template": "⬆️ Straight Up ⬆️ [Vanilla] [SMP] {1.21.8} {No Map Resets} {No Whitelist}",
         "flair_text": "Vanilla",
@@ -94,25 +92,21 @@ CONFIG: Dict[str, Dict[str, Any]] = {
         ),
     },
     "r/MinecraftSMPs": {
-    "schedule": {
-        "freq": "weekly",
-        # ISO weekday: 1=Mon … 7=Sun
-        "weekday": 1
-    },
-    "post_type": "image",
-    "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Website: https://straightupminecraft.com ",
-    "images": ["images/001.png", "images/002.png", "images/003.png", "images/004.png", "images/005.png", "images/006.png", "images/007.png", "images/008.png", "images/009.png"]
+        "schedule": {"freq": "weekly", "weekday": 1},
+        "post_type": "image",
+        "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Website: https://straightupminecraft.com ",
+        "images": ["images/001.png", "images/002.png", "images/003.png", "images/004.png", "images/005.png", "images/006.png", "images/007.png", "images/008.png", "images/009.png"]
     },
 
     # MONTHLY POSTS
     "r/MCServerAds": {
-        "schedule": {"freq": "monthly", "monthday": 1},  # 1..28/29/30/31
+        "schedule": {"freq": "monthly", "monthday": 1},
         "post_type": "image",
         "title_template": "No resets, no land claims, and no TPA - just Straight Up vanilla Minecraft since 2019. IP: play.straightupminecraft.com (Java 1.21.8, no whitelist) | Website: https://straightupminecraft.com ",
         "images": ["images/001.png", "images/002.png", "images/003.png", "images/004.png", "images/005.png", "images/006.png", "images/007.png", "images/008.png", "images/009.png"]
     },
     "r/mcpublicservers": {
-        "schedule": {"freq": "monthly", "monthday": 1},  # 1..28/29/30/31
+        "schedule": {"freq": "monthly", "monthday": 1},
         "post_type": "markdown",
         "title_template": "⬆️ Straight Up ⬆️ [Vanilla] [Survival] {1.21.8} {No Whitelist} {No Map Resets}",
         "body_md": (
@@ -138,76 +132,65 @@ CONFIG: Dict[str, Dict[str, Any]] = {
     },
 }
 
-
 # ============
 # HELPERS
 # ============
 def should_post_today(sched: Dict[str, Any], now_utc: dt.datetime) -> bool:
-    """Return True if this subreddit is scheduled to post TODAY (UTC)."""
     freq = (sched.get("freq") or "").lower()
     if freq == "daily":
         return True
-
     if freq == "weekly":
-        # ISO weekday: Monday=1 ... Sunday=7
-        target = int(sched.get("weekday", 1))
+        target = int(sched.get("weekday", 1))  # ISO weekday 1..7
         return now_utc.isoweekday() == target
-
     if freq == "monthly":
         target = int(sched.get("monthday", 1))
-        # Guard against months with fewer days:
         last_day = (now_utc.replace(day=28) + dt.timedelta(days=4)).replace(day=1) - dt.timedelta(days=1)
         safe_target = min(target, last_day.day)
         return now_utc.day == safe_target
-
-    # Unknown frequency -> don't post
     return False
 
-
 def pick_rotating_image(images: List[str], now_utc: dt.datetime) -> Optional[str]:
-    """
-    Pick ONE image for today with weekly-reset rotation.
-    - Mon resets the cycle (index 0).
-    - If fewer than 7 images, wrap around with modulo.
-    """
     if not images:
         return None
-
-    # Monday=1 -> index 0; Tuesday=2 -> index 1; ... Sunday=7 -> index 6
     weekday_index = now_utc.isoweekday() - 1  # 0..6
     idx = weekday_index % len(images)
     path = images[idx]
-
-    # Ensure the file exists (for GitHub Actions runner)
     if not os.path.exists(path):
         print(f"[WARN] Image not found at '{path}'.", file=sys.stderr)
         return None
-
     return path
 
-
 def build_title(template: str) -> str:
-    """
-    Return the exact title string from the config.
-    """
     if not template:
-        return "⬆️ Straight Up ⬆️ [Vanilla] [Survival] {1.21.8} {No Whitelist} {No Map Resets}" # Fallback
+        return "⬆️ Straight Up ⬆️ [Vanilla] [Survival] {1.21.8} {No Whitelist} {No Map Resets}"
     return template.strip()
 
-def apply_flair_if_any(reddit: praw.Reddit, submission, target: str, flair_text: Optional[str]):
-    if not flair_text:
-        return
+def get_flair_template_id(reddit: praw.Reddit, target: str, flair_text: str) -> Optional[str]:
+    """Return flair template ID for the given flair text, if user-selectable."""
     try:
         for tpl in reddit.subreddit(target).flair.link_templates.user_selectable():
-            if str(tpl.get("text","")).lower() == flair_text.lower():
-                submission.flair.select(tpl["id"], flair_text)
-                print(f"[INFO] Applied flair '{flair_text}' on {target}")
-                return
-        print(f"[WARN] Flair '{flair_text}' not found or not user-selectable on {target}.")
+            txt = str(tpl.get("text", ""))
+            tid = tpl.get("id")
+            if txt.lower() == flair_text.lower():
+                print(f"[INFO] Found flair on {target}: text='{txt}' id='{tid}'")
+                return tid
+        print(f"[WARN] Flair text '{flair_text}' not found as user-selectable on {target}.")
     except Exception as e:
-        print(f"[WARN] Could not apply flair on {target}: {e}")
+        print(f"[WARN] Could not list flairs for {target}: {e}")
+    return None
 
-
+def log_available_flairs(reddit: praw.Reddit, target: str) -> None:
+    """Log all user-selectable flairs for troubleshooting."""
+    try:
+        print(f"[INFO] Listing user-selectable flairs for {target}:")
+        found_any = False
+        for tpl in reddit.subreddit(target).flair.link_templates.user_selectable():
+            found_any = True
+            print(f"  - text='{tpl.get('text','')}' id='{tpl.get('id','')}' editable={tpl.get('text_editable', False)}")
+        if not found_any:
+            print("  (none)")
+    except Exception as e:
+        print(f"[WARN] Could not fetch flair templates for {target}: {e}")
 
 def reddit_client_from_env() -> praw.Reddit:
     try:
@@ -220,18 +203,28 @@ def reddit_client_from_env() -> praw.Reddit:
         )
     except KeyError as e:
         missing = str(e).strip("'")
-        raise RuntimeError(
-            f"Missing required environment variable: {missing}. ")
+        raise RuntimeError(f"Missing required environment variable: {missing}. ")
 
-
-def post_markdown(reddit: praw.Reddit, target: str, title: str, body_md: str, flair_text: Optional[str]):
+def post_markdown(reddit: praw.Reddit, target: str, title: str, body_md: str, flair_id: Optional[str], flair_text: Optional[str]):
     if DRY_RUN:
         print(f"[DRY RUN] Would POST markdown to {target}\n  Title: {title}\n  Flair: {flair_text or '(none)'}\n  Body (first 120): {body_md[:120]!r}")
         return
-    submission = reddit.subreddit(target).submit(title=title, selftext=body_md)
-    apply_flair_if_any(reddit, submission, target, flair_text)
+    try:
+        submission = reddit.subreddit(target).submit(
+            title=title,
+            selftext=body_md,
+            flair_id=flair_id,
+            flair_text=flair_text
+        )
+        print(f"[INFO] Submitted markdown post to {target} (id={submission.id})")
+    except RedditAPIException as e:
+        print(f"[ERROR] RedditAPIException posting markdown to {target}: {e}")
+        if "FLAIR_REQUIRED" in str(e) or "SUBMIT_VALIDATION_FLAIR_REQUIRED" in str(e):
+            log_available_flairs(reddit, target)
+    except Exception as e:
+        print(f"[ERROR] Failed posting markdown to {target}: {repr(e)}")
 
-def post_image(reddit: praw.Reddit, target: str, title: str, image_path: str, flair_text: Optional[str]):
+def post_image(reddit: praw.Reddit, target: str, title: str, image_path: str, flair_id: Optional[str], flair_text: Optional[str]):
     """
     Post all configured images as a gallery, rotating which one appears first each day.
     """
@@ -247,7 +240,6 @@ def post_image(reddit: praw.Reddit, target: str, title: str, image_path: str, fl
         rotated_images = images
 
     gallery_items = [{"image_path": img} for img in rotated_images if os.path.exists(img)]
-
     if not gallery_items:
         print(f"[WARN] {target}: No valid images found for gallery.")
         return
@@ -256,10 +248,20 @@ def post_image(reddit: praw.Reddit, target: str, title: str, image_path: str, fl
         print(f"[DRY RUN] Would POST gallery to {target}\n  Title: {title}\n  Images: {[i['image_path'] for i in gallery_items]}\n  Flair: {flair_text or '(none)'}")
         return
 
-    submission = reddit.subreddit(target).submit_gallery(title=title, images=gallery_items)
-    apply_flair_if_any(reddit, submission, target, flair_text)
-
-
+    try:
+        submission = reddit.subreddit(target).submit_gallery(
+            title=title,
+            images=gallery_items,
+            flair_id=flair_id,
+            flair_text=flair_text
+        )
+        print(f"[INFO] Submitted gallery to {target} (id={submission.id})")
+    except RedditAPIException as e:
+        print(f"[ERROR] RedditAPIException posting gallery to {target}: {e}")
+        if "FLAIR_REQUIRED" in str(e) or "SUBMIT_VALIDATION_FLAIR_REQUIRED" in str(e):
+            log_available_flairs(reddit, target)
+    except Exception as e:
+        print(f"[ERROR] Failed posting gallery to {target}: {repr(e)}")
 
 # =======
 # MAIN
@@ -276,35 +278,49 @@ def main() -> int:
 
         post_type = (cfg.get("post_type") or "markdown").lower()
         title = build_title(cfg.get("title_template"))
+        flair_text = cfg.get("flair_text")
+
+        flair_id = None
+        if flair_text:
+            flair_id = get_flair_template_id(reddit, target, flair_text)
+            if not flair_id:
+                print(f"[WARN] Skipping {target}: Required flair '{flair_text}' not found.")
+                log_available_flairs(reddit, target)
+                time.sleep(60)
+                continue
 
         if post_type == "markdown":
             body = cfg.get("body_md", "").strip()
             if not body:
                 print(f"[WARN] {target}: post_type=markdown but body_md is empty. Skipping.")
+                time.sleep(60)
                 continue
             print(f"[INFO] Posting MARKDOWN to {target} with title '{title}'")
-            post_markdown(reddit, target, title, body, cfg.get("flair_text"))
+            post_markdown(reddit, target, title, body, flair_id, flair_text)
             any_attempted = True
+            time.sleep(60)
 
         elif post_type == "image":
             images = cfg.get("images") or []
             img = pick_rotating_image(images, UTC_NOW)
             if not img:
                 print(f"[WARN] {target}: No valid image resolved (check paths). Skipping.")
+                time.sleep(60)
                 continue
             print(f"[INFO] Posting IMAGE to {target} with title '{title}' -> {img}")
-            post_image(reddit, target, title, img, cfg.get("flair_text"))
+            post_image(reddit, target, title, img, flair_id, flair_text)
             any_attempted = True
+            time.sleep(60)
 
         else:
             print(f"[WARN] {target}: Unknown post_type='{post_type}'. Skipping.")
+            time.sleep(60)
 
     if not any_attempted:
         print("[INFO] No posts attempted today (nothing scheduled or misconfigured).")
     else:
         print("[OK] Finished scheduled run.")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
