@@ -204,6 +204,8 @@ def post_image(reddit: praw.Reddit, target: str, title: str, image_path: str, fl
 def main() -> int:
     reddit = reddit_client_from_env()
     any_attempted = False
+    print("[INFO] Waiting 15 minutes before first post to avoid Reddit spam filters...")
+    time.sleep(900)
 
     for target, cfg in CONFIG.items():
         if not should_post_today(cfg.get("schedule", {}), UTC_NOW):
@@ -234,7 +236,7 @@ def main() -> int:
         else:
             print(f"[WARN] {target}: Unknown post_type='{post_type}'. Skipping.")
 
-        time.sleep(60)
+        time.sleep(180)
 
     print("[OK] Finished scheduled run." if any_attempted else "[INFO] No posts attempted today.")
     return 0
