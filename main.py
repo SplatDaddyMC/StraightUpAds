@@ -10,7 +10,7 @@ from praw.exceptions import RedditAPIException
 # ==================
 # RUNTIME SETTINGS
 # ==================
-DRY_RUN = False  # Set True to test without actually posting
+DRY_RUN = True  # Set True to test without actually posting
 
 UTC_NOW = dt.datetime.utcnow()  # All scheduling is done in UTC
 
