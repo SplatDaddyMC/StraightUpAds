@@ -23,7 +23,7 @@ CONFIG: Dict[str, Dict[str, Any]] = {
         "schedule": {"freq": "daily"},
         "post_type": "markdown",
         "title_template": "⬆️ Straight Up ⬆️ [Vanilla] [Survival] {1.21.8} {No Whitelist} {No Map Resets}",
-        "body_md_a": (
+        "body_md": (
             "**Server IP (Java Edition)**: play.straightupminecraft.com\n\n"
             "**Join us on Discord**: [https://discord.gg/camSwwyUAe](https://discord.gg/camSwwyUAe)\n\n"
             "**Check out our website**: [https://straightupminecraft.com](https://straightupminecraft.com)\n\n"
@@ -42,27 +42,7 @@ CONFIG: Dict[str, Dict[str, Any]] = {
             "‼️ **Unintrusive anticheat.** We aim to put vanilla players on a fair footing and prevent exploits from ruining the server experience.\n\n"
             "### Want more details? [Here](https://straightupminecraft.com) is a link to our website. "
             "Additional questions? Reach out to us on [Discord](https://discord.gg/camSwwyUAe)!"
-        ),
-        "body_md_b": (
-            "**Check out our website**: [https://straightupminecraft.com](https://straightupminecraft.com)\n\n"
-            "**Join us on Discord**: [https://discord.gg/camSwwyUAe](https://discord.gg/camSwwyUAe)\n\n"
-            "**Server IP (Java Edition)**: play.straightupminecraft.com\n\n"
-            "## **About Straight Up:**\n\n"
-            "> \"Everyone’s forever world.\"\n\n"
-            "No resets, no land claims, and no TPA - just “Straight Up” vanilla Minecraft. "
-            "The overworld has never been wiped since our founding date of April 1^(st), 2019, "
-            "and we intend to keep it that way. With a rich history spanning over 6 years, "
-            "there is much to explore and many adventures to be had.\n\n"
-            "🌎 **No world resets.** Many servers boast this, but few have stuck around as long as we have (6 years)!\n\n"
-            "🧨 **PvP and griefing permitted.** No land claims or protected areas.\n\n"
-            "‼️ **Unintrusive anticheat.** We aim to put vanilla players on a fair footing and prevent exploits from ruining the server experience.\n\n"
-            "🔊 **Proximity chat.** We have server-side support for the Simple Voice Chat mod (optional: requires client-side mod)\n\n"
-            "💻 **Stable server performance.** The server is carefully optimized without cutting into the gameplay experience.\n\n"
-            "🚫 **No /tpa and no /home.** No currency, factions, or economy plugins that ruin the vanilla experience. "
-            "Just Straight Up survival Minecraft. The way the game was meant to be played.\n\n"
-            "### Want more details? [Here](https://straightupminecraft.com) is a link to our website. "
-            "Additional questions? Reach out to us on [Discord](https://discord.gg/camSwwyUAe)!"
-        ),
+        )
     },
     "r/MinecraftServer": {
         "schedule": {"freq": "daily"},
@@ -177,12 +157,6 @@ def pick_rotating_image(images: List[str], now_utc: dt.datetime) -> Optional[str
         return None
     return path
 
-def pick_alternating_body(cfg: Dict[str, Any], now_utc: dt.datetime) -> Optional[str]:
-    if "body_md_a" in cfg and "body_md_b" in cfg:
-        return cfg["body_md_a"] if now_utc.day % 2 == 0 else cfg["body_md_b"]
-    return cfg.get("body_md")
-
-
 def build_title(template: str) -> str:
     return template.strip() if template else "⬆️ Straight Up ⬆️ [Vanilla] [Survival] {1.21.8} {No Whitelist} {No Map Resets}"
 
@@ -230,8 +204,8 @@ def post_image(reddit: praw.Reddit, target: str, title: str, image_path: str, fl
 def main() -> int:
     reddit = reddit_client_from_env()
     any_attempted = False
-    print("[INFO] Waiting 15 minutes before first post to avoid Reddit spam filters...")
-    time.sleep(900)
+    print("[INFO] Waiting 60s before first post to avoid Reddit spam filters...")
+    time.sleep(60)
 
     for target, cfg in CONFIG.items():
         if not should_post_today(cfg.get("schedule", {}), UTC_NOW):
@@ -244,7 +218,7 @@ def main() -> int:
         post_type = (cfg.get("post_type") or "markdown").lower()
 
         if post_type == "markdown":
-            body = (pick_alternating_body(cfg, UTC_NOW) or "").strip()
+            body = (cfg.get("body_md") or "").strip()
             if not body:
                 print(f"[WARN] {target}: Markdown body empty. Skipping.")
             else:
@@ -262,7 +236,7 @@ def main() -> int:
         else:
             print(f"[WARN] {target}: Unknown post_type='{post_type}'. Skipping.")
 
-        time.sleep(180)
+        time.sleep(30)
 
     print("[OK] Finished scheduled run." if any_attempted else "[INFO] No posts attempted today.")
     return 0
